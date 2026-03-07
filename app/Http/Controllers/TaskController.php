@@ -38,6 +38,11 @@ class TaskController extends Controller
         return view('tasks.show');
     }
 
+    public function recycleBinView(): View
+    {
+        return view('tasks.recycle-bin');
+    }
+
     public function index(Request $request): JsonResponse
     {
         try {
@@ -243,6 +248,75 @@ class TaskController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update task status.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function trashed(Request $request): JsonResponse
+    {
+        try {
+            $trashedTasks = $this->taskService->getTrashedTasks($request->user());
+
+            return response()->json([
+                'success' => true,
+                'data' => $trashedTasks,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve deleted tasks.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function restore(Request $request, int $id): JsonResponse
+    {
+        try {
+            $task = $this->taskService->restoreTask($id, $request->user());
+
+            if (!$task) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Task not found in recycle bin.',
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Task restored successfully.',
+                'data' => $task,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to restore task.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function forceDestroy(Request $request, int $id): JsonResponse
+    {
+        try {
+            $deleted = $this->taskService->permanentlyDeleteTask($id, $request->user());
+
+            if (!$deleted) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Task not found in recycle bin.',
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Task permanently deleted.',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to permanently delete task.',
                 'error' => $e->getMessage(),
             ], 500);
         }

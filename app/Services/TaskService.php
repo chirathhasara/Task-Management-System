@@ -63,4 +63,32 @@ class TaskService
     {
         return $task->user_id === $user->id;
     }
+
+    public function getTrashedTasks(User $user)
+    {
+        return Task::getTrashedTasks($user->id);
+    }
+
+    public function restoreTask(int $taskId, User $user): ?Task
+    {
+        $task = Task::findTrashedTask($taskId, $user->id);
+
+        if (!$task) {
+            return null;
+        }
+
+        $task->restoreTask();
+        return $task->fresh();
+    }
+
+    public function permanentlyDeleteTask(int $taskId, User $user): bool
+    {
+        $task = Task::findTrashedTask($taskId, $user->id);
+
+        if (!$task) {
+            return false;
+        }
+
+        return $task->forceDeleteTask();
+    }
 }

@@ -83,4 +83,25 @@ class Task extends Model
     {
         return $this->forceDelete();
     }
+
+    public static function getTrashedTasks(int $userId)
+    {
+        return static::onlyTrashed()
+            ->where('user_id', $userId)
+            ->orderBy('deleted_at', 'desc')
+            ->get();
+    }
+
+    public static function findTrashedTask(int $taskId, int $userId): ?Task
+    {
+        return static::onlyTrashed()
+            ->where('id', $taskId)
+            ->where('user_id', $userId)
+            ->first();
+    }
+
+    public function restoreTask(): bool
+    {
+        return $this->restore();
+    }
 }

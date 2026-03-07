@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Tasks')
+@section('title', 'Recycle Bin')
 
 @section('content')
 <div class="container">
@@ -8,29 +8,24 @@
 
     <div class="profile-container">
         <div class="profile-header" style="display: flex; justify-content: space-between; align-items: center;">
-            <h2>My Tasks</h2>
-            <div style="display: flex; gap: 0.5rem;">
-                <a href="/tasks/recycle-bin" class="btn btn-secondary" style="width: auto;">Recycle Bin</a>
-                <a href="/tasks/create" class="btn btn-primary" style="width: auto;">Create New Task</a>
-            </div>
+            <h2>Recycle Bin</h2>
+            <a href="/tasks" class="btn btn-secondary" style="width: auto;">Back to Tasks</a>
         </div>
 
-        <div style="margin-bottom: 1.5rem; display: flex; gap: 1rem;">
-            <button class="btn btn-secondary" data-filter="all">All Tasks</button>
-            <button class="btn btn-secondary" data-filter="pending">Pending</button>
-            <button class="btn btn-secondary" data-filter="completed">Completed</button>
+        <div style="background: #FEF3C7; border: 1px solid #FCD34D; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; color: #92400E;">
+            <strong>Note:</strong> Deleted tasks are stored here temporarily. You can restore them or permanently delete them.
         </div>
 
         <div id="loadingContainer" style="text-align: center; padding: 3rem;">
             <div class="loading" style="margin: 0 auto;"></div>
-            <p style="margin-top: 1rem; color: #6B7280;">Loading tasks...</p>
+            <p style="margin-top: 1rem; color: #6B7280;">Loading deleted tasks...</p>
         </div>
 
         <div id="tasksContainer" style="display: none;">
             <div id="tasksList"></div>
             <div id="emptyState" style="text-align: center; padding: 3rem; color: #6B7280; display: none;">
-                <p style="font-size: 1.1rem; margin-bottom: 1rem;">No tasks found</p>
-                <p>Create your first task to get started</p>
+                <p style="font-size: 1.1rem; margin-bottom: 1rem;">Recycle bin is empty</p>
+                <p>No deleted tasks found</p>
             </div>
         </div>
     </div>
@@ -38,8 +33,6 @@
 
 @section('scripts')
 <script>
-let currentFilter = 'all';
-
 document.addEventListener('DOMContentLoaded', async function() {
     const token = localStorage.getItem('auth_token');
     
@@ -48,35 +41,17 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
 
-    await loadTasks(currentFilter);
-
-    const filterButtons = document.querySelectorAll('[data-filter]');
-    filterButtons.forEach(button => {
-        button.addEventListener('click', async function() {
-            filterButtons.forEach(btn => btn.classList.remove('btn-primary'));
-            filterButtons.forEach(btn => btn.classList.add('btn-secondary'));
-            this.classList.remove('btn-secondary');
-            this.classList.add('btn-primary');
-            
-            currentFilter = this.dataset.filter;
-            await loadTasks(currentFilter);
-        });
-    });
+    await loadTrashedTasks();
 });
 
-async function loadTasks(filter = 'all') {
+async function loadTrashedTasks() {
     const token = localStorage.getItem('auth_token');
     
     document.getElementById('loadingContainer').style.display = 'block';
     document.getElementById('tasksContainer').style.display = 'none';
 
     try {
-        let url = '/api/tasks';
-        if (filter !== 'all') {
-            url += `?status=${filter}`;
-        }
-
-        const response = await fetch(url, {
+        const response = await fetch('/api/tasks/trashed', {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Accept': 'application/json'
@@ -89,10 +64,10 @@ async function loadTasks(filter = 'all') {
             document.getElementById('loadingContainer').style.display = 'none';
             document.getElementById('tasksContainer').style.display = 'block';
         } else {
-            throw new Error('Failed to load tasks');
+            throw new Error('Failed to load deleted tasks');
         }
     } catch (error) {
-        showAlert('error', 'Failed to load tasks. Please try again.');
+        showAlert('error', 'Failed to load deleted tasks. Please try again.');
         document.getElementById('loadingContainer').style.display = 'none';
     }
 }
@@ -120,11 +95,18 @@ function createTaskCard(task) {
         year: 'numeric'
     }) : 'No due date';
 
+    const deletedDate = task.deleted_at ? new Date(task.deleted_at).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }) : '';
+
     const statusColor = task.status === 'completed' ? 'var(--success)' : 'var(--primary)';
-    const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status === 'pending';
 
     return `
-        <div class="info-row" style="display: block; margin-bottom: 1rem;">
+        <div class="info-row" style="display: block; margin-bottom: 1rem; opacity: 0.8;">
             <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
                 <div style="flex: 1;">
                     <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 0.25rem;">
@@ -135,19 +117,13 @@ function createTaskCard(task) {
                         <span style="color: ${statusColor}; font-weight: 600;">
                             ${task.status.charAt(0).toUpperCase() + task.status.slice(1)}
                         </span>
-                        <span ${isOverdue ? 'style="color: var(--danger); font-weight: 600;"' : ''}>
-                            ${dueDate}
-                        </span>
+                        <span>Due: ${dueDate}</span>
+                        <span style="color: var(--danger);">Deleted: ${deletedDate}</span>
                     </div>
                 </div>
                 <div style="display: flex; gap: 0.5rem;">
-                    ${task.status === 'pending' ? 
-                        `<button class="btn btn-secondary" data-action="complete" data-id="${task.id}" style="padding: 0.5rem 1rem; font-size: 0.875rem; width: auto;">Complete</button>` :
-                        `<button class="btn btn-secondary" data-action="pending" data-id="${task.id}" style="padding: 0.5rem 1rem; font-size: 0.875rem; width: auto;">Reopen</button>`
-                    }
-                    <a href="/tasks/${task.id}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem; width: auto; text-decoration: none;">View</a>
-                    <a href="/tasks/${task.id}/edit" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.875rem; width: auto; text-decoration: none;">Edit</a>
-                    <button class="btn btn-danger" data-action="delete" data-id="${task.id}" style="padding: 0.5rem 1rem; font-size: 0.875rem; width: auto;">Delete</button>
+                    <button class="btn btn-primary" data-action="restore" data-id="${task.id}" style="padding: 0.5rem 1rem; font-size: 0.875rem; width: auto;">Restore</button>
+                    <button class="btn btn-danger" data-action="permanent-delete" data-id="${task.id}" style="padding: 0.5rem 1rem; font-size: 0.875rem; width: auto;">Delete Forever</button>
                 </div>
             </div>
         </div>
@@ -155,25 +131,21 @@ function createTaskCard(task) {
 }
 
 function attachTaskEventListeners() {
-    document.querySelectorAll('[data-action="complete"]').forEach(btn => {
-        btn.addEventListener('click', () => updateTaskStatus(btn.dataset.id, 'complete'));
+    document.querySelectorAll('[data-action="restore"]').forEach(btn => {
+        btn.addEventListener('click', () => restoreTask(btn.dataset.id));
     });
 
-    document.querySelectorAll('[data-action="pending"]').forEach(btn => {
-        btn.addEventListener('click', () => updateTaskStatus(btn.dataset.id, 'pending'));
-    });
-
-    document.querySelectorAll('[data-action="delete"]').forEach(btn => {
-        btn.addEventListener('click', () => deleteTask(btn.dataset.id));
+    document.querySelectorAll('[data-action="permanent-delete"]').forEach(btn => {
+        btn.addEventListener('click', () => permanentlyDeleteTask(btn.dataset.id));
     });
 }
 
-async function updateTaskStatus(taskId, action) {
+async function restoreTask(taskId) {
     const token = localStorage.getItem('auth_token');
     
     try {
-        const response = await fetch(`/api/tasks/${taskId}/${action}`, {
-            method: 'PATCH',
+        const response = await fetch(`/api/tasks/${taskId}/restore`, {
+            method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Accept': 'application/json'
@@ -181,23 +153,23 @@ async function updateTaskStatus(taskId, action) {
         });
 
         if (response.ok) {
-            showAlert('success', 'Task updated successfully');
-            await loadTasks(currentFilter);
+            showAlert('success', 'Task restored successfully');
+            await loadTrashedTasks();
         } else {
-            showAlert('error', 'Failed to update task');
+            showAlert('error', 'Failed to restore task');
         }
     } catch (error) {
         showAlert('error', 'An error occurred');
     }
 }
 
-async function deleteTask(taskId) {
-    if (!confirm('Are you sure you want to delete this task?')) return;
+async function permanentlyDeleteTask(taskId) {
+    if (!confirm('Are you sure you want to permanently delete this task? This action cannot be undone!')) return;
 
     const token = localStorage.getItem('auth_token');
     
     try {
-        const response = await fetch(`/api/tasks/${taskId}`, {
+        const response = await fetch(`/api/tasks/${taskId}/force`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -206,10 +178,10 @@ async function deleteTask(taskId) {
         });
 
         if (response.ok) {
-            showAlert('success', 'Task deleted successfully');
-            await loadTasks(currentFilter);
+            showAlert('success', 'Task permanently deleted');
+            await loadTrashedTasks();
         } else {
-            showAlert('error', 'Failed to delete task');
+            showAlert('error', 'Failed to permanently delete task');
         }
     } catch (error) {
         showAlert('error', 'An error occurred');

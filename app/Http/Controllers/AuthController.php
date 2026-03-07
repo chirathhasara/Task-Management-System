@@ -7,6 +7,7 @@ use App\Http\Requests\RegisterRequest;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Contracts\View\View;
 
 class AuthController extends Controller
 {
@@ -15,6 +16,21 @@ class AuthController extends Controller
     public function __construct(AuthService $authService)
     {
         $this->authService = $authService;
+    }
+
+    public function showLoginForm(): View
+    {
+        return view('auth.login');
+    }
+
+    public function showRegisterForm(): View
+    {
+        return view('auth.register');
+    }
+
+    public function showProfile(Request $request): View
+    {
+        return view('auth.profile');
     }
 
     public function register(RegisterRequest $request): JsonResponse

@@ -2,65 +2,228 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Task;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
+use App\Services\TaskService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class TaskController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    protected TaskService $taskService;
+
+    public function __construct(TaskService $taskService)
     {
-        //
+        $this->taskService = $taskService;
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function index(Request $request): JsonResponse
     {
-        //
+        try {
+            $status = $request->query('status');
+            
+            if ($status && in_array($status, ['pending', 'completed'])) {
+                $tasks = $this->taskService->getTasksByStatus($request->user(), $status);
+            } else {
+                $tasks = $this->taskService->getAllTasks($request->user());
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $tasks,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve tasks.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(StoreTaskRequest $request)
+    public function store(StoreTaskRequest $request): JsonResponse
     {
-        //
+        try {
+            $task = $this->taskService->createTask($request->validated(), $request->user());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Task created successfully.',
+                'data' => $task,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create task.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Task $task)
+    public function show(Request $request, int $id): JsonResponse
     {
-        //
+        try {
+            $task = $this->taskService->getTaskById($id, $request->user());
+
+            if (!$task) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Task not found.',
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $task,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve task.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Task $task)
+    public function update(UpdateTaskRequest $request, int $id): JsonResponse
     {
-        //
+        try {
+            $task = $this->taskService->getTaskById($id, $request->user());
+
+            if (!$task) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Task not found.',
+                ], 404);
+            }
+
+            if (!$this->taskService->verifyTaskOwnership($task, $request->user())) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized to update this task.',
+                ], 403);
+            }
+
+            $this->taskService->updateTask($task, $request->validated());
+            $task->refresh();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Task updated successfully.',
+                'data' => $task,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update task.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(UpdateTaskRequest $request, Task $task)
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        //
+        try {
+            $task = $this->taskService->getTaskById($id, $request->user());
+
+            if (!$task) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Task not found.',
+                ], 404);
+            }
+
+            if (!$this->taskService->verifyTaskOwnership($task, $request->user())) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized to delete this task.',
+                ], 403);
+            }
+
+            $this->taskService->deleteTask($task);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Task deleted successfully.',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete task.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Task $task)
+    public function markAsCompleted(Request $request, int $id): JsonResponse
     {
-        //
+        try {
+            $task = $this->taskService->getTaskById($id, $request->user());
+
+            if (!$task) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Task not found.',
+                ], 404);
+            }
+
+            if (!$this->taskService->verifyTaskOwnership($task, $request->user())) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized to update this task.',
+                ], 403);
+            }
+
+            $this->taskService->markTaskAsCompleted($task);
+            $task->refresh();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Task marked as completed.',
+                'data' => $task,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update task status.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function markAsPending(Request $request, int $id): JsonResponse
+    {
+        try {
+            $task = $this->taskService->getTaskById($id, $request->user());
+
+            if (!$task) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Task not found.',
+                ], 404);
+            }
+
+            if (!$this->taskService->verifyTaskOwnership($task, $request->user())) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized to update this task.',
+                ], 403);
+            }
+
+            $this->taskService->markTaskAsPending($task);
+            $task->refresh();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Task marked as pending.',
+                'data' => $task,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update task status.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

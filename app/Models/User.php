@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -56,14 +57,22 @@ class User extends Authenticatable
 
     public function revokeAllTokens(): void
     {
-        $this->tokens()->delete();
+        /** @var \Laravel\Sanctum\PersonalAccessToken $token */
+        foreach ($this->tokens as $token) {
+            $token->delete();
+        }
     }
 
     public function revokeCurrentToken(): void
     {
-        $currentToken = $this->currentAccessToken();
-        if ($currentToken) {
-            $currentToken->delete();
+        /** @var \Laravel\Sanctum\PersonalAccessToken|null $token */
+        if ($token = $this->currentAccessToken()) {
+            $token->delete();
         }
+    }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
     }
 }

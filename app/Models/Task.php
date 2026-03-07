@@ -44,19 +44,19 @@ class Task extends Model
             ->first();
     }
 
-    public static function getUserTasks(int $userId)
+    public static function getUserTasks(int $userId, int $perPage = 10)
     {
         return static::where('user_id', $userId)
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate($perPage);
     }
 
-    public static function getUserTasksByStatus(int $userId, string $status)
+    public static function getUserTasksByStatus(int $userId, string $status, int $perPage = 10)
     {
         return static::where('user_id', $userId)
             ->where('status', $status)
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate($perPage);
     }
 
     public function updateTask(array $data): bool
@@ -84,12 +84,12 @@ class Task extends Model
         return $this->forceDelete();
     }
 
-    public static function getTrashedTasks(int $userId)
+    public static function getTrashedTasks(int $userId, int $perPage = 10)
     {
         return static::onlyTrashed()
             ->where('user_id', $userId)
             ->orderBy('deleted_at', 'desc')
-            ->get();
+            ->paginate($perPage);
     }
 
     public static function findTrashedTask(int $taskId, int $userId): ?Task

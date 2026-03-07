@@ -12,14 +12,14 @@ class TaskService
     {
     }
 
-    public function getAllTasks(User $user): Collection
+    public function getAllTasks(User $user, int $perPage = 10)
     {
-        return Task::getUserTasks($user->id);
+        return Task::getUserTasks($user->id, $perPage);
     }
 
-    public function getTasksByStatus(User $user, string $status): Collection
+    public function getTasksByStatus(User $user, string $status, int $perPage = 10)
     {
-        return Task::getUserTasksByStatus($user->id, $status);
+        return Task::getUserTasksByStatus($user->id, $status, $perPage);
     }
 
     public function getTaskById(int $taskId, User $user): ?Task
@@ -64,9 +64,9 @@ class TaskService
         return $task->user_id === $user->id;
     }
 
-    public function getTrashedTasks(User $user)
+    public function getTrashedTasks(User $user, int $perPage = 10)
     {
-        return Task::getTrashedTasks($user->id);
+        return Task::getTrashedTasks($user->id, $perPage);
     }
 
     public function restoreTask(int $taskId, User $user): ?Task

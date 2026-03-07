@@ -23,6 +23,7 @@
 
         <div id="tasksContainer" style="display: none;">
             <div id="tasksList"></div>
+            <div id="paginationContainer" style="margin-top: 2rem;"></div>
             <div id="emptyState" style="text-align: center; padding: 3rem; color: #6B7280; display: none;">
                 <p style="font-size: 1.1rem; margin-bottom: 1rem;">Recycle bin is empty</p>
                 <p>No deleted tasks found</p>
@@ -33,6 +34,9 @@
 
 @section('scripts')
 <script>
+let currentPage = 1;
+let paginationData = null;
+
 document.addEventListener('DOMContentLoaded', async function() {
     const token = localStorage.getItem('auth_token');
     
@@ -41,26 +45,28 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
 
-    await loadTrashedTasks();
+    await loadTrashedTasks(currentPage);
 });
 
-async function loadTrashedTasks() {
+async function loadTrashedTasks(page) {
     const token = localStorage.getItem('auth_token');
     
     document.getElementById('loadingContainer').style.display = 'block';
     document.getElementById('tasksContainer').style.display = 'none';
 
     try {
-        const response = await fetch('/api/tasks/trashed', {
+        const response = await fetch(`/api/tasks/trashed?page=` + page, {
             headers: {
-                'Authorization': `Bearer ${token}`,
+                'Authorization': `Bearer ` + token,
                 'Accept': 'application/json'
             }
         });
 
         if (response.ok) {
             const data = await response.json();
+            paginationData = data.pagination;
             displayTasks(data.data);
+            displayPagination(paginationData);
             document.getElementById('loadingContainer').style.display = 'none';
             document.getElementById('tasksContainer').style.display = 'block';
         } else {
@@ -75,9 +81,11 @@ async function loadTrashedTasks() {
 function displayTasks(tasks) {
     const tasksList = document.getElementById('tasksList');
     const emptyState = document.getElementById('emptyState');
+    const paginationContainer = document.getElementById('paginationContainer');
 
     if (tasks.length === 0) {
         tasksList.innerHTML = '';
+        paginationContainer.innerHTML = '';
         emptyState.style.display = 'block';
         return;
     }
@@ -86,6 +94,70 @@ function displayTasks(tasks) {
     tasksList.innerHTML = tasks.map(task => createTaskCard(task)).join('');
 
     attachTaskEventListeners();
+}
+
+function displayPagination(pagination) {
+    const container = document.getElementById('paginationContainer');
+    
+    if (!pagination || pagination.last_page <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const currentPage = pagination.current_page;
+    const lastPage = pagination.last_page;
+    const from = pagination.from || 0;
+    const to = pagination.to || 0;
+    const total = pagination.total;
+
+    let html = '<div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--background); border-radius: 8px;">';
+    html += '<div style="color: #6B7280; font-size: 0.875rem;">Showing ' + from + ' to ' + to + ' of ' + total + ' deleted tasks</div>';
+    html += '<div style="display: flex; gap: 0.5rem;">';
+
+    if (currentPage > 1) {
+        html += '<button class="btn btn-secondary" onclick="changePage(' + (currentPage - 1) + ')" style="padding: 0.5rem 1rem; width: auto;">Previous</button>';
+    }
+
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(lastPage, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    if (startPage > 1) {
+        html += '<button class="btn btn-secondary" onclick="changePage(1)" style="padding: 0.5rem 1rem; width: auto;">1</button>';
+        if (startPage > 2) {
+            html += '<span style="padding: 0.5rem; color: #6B7280;">...</span>';
+        }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+        const btnClass = i === currentPage ? 'btn btn-primary' : 'btn btn-secondary';
+        html += '<button class="' + btnClass + '" onclick="changePage(' + i + ')" style="padding: 0.5rem 1rem; width: auto;">' + i + '</button>';
+    }
+
+    if (endPage < lastPage) {
+        if (endPage < lastPage - 1) {
+            html += '<span style="padding: 0.5rem; color: #6B7280;">...</span>';
+        }
+        html += '<button class="btn btn-secondary" onclick="changePage(' + lastPage + ')" style="padding: 0.5rem 1rem; width: auto;">' + lastPage + '</button>';
+    }
+
+    if (currentPage < lastPage) {
+        html += '<button class="btn btn-secondary" onclick="changePage(' + (currentPage + 1) + ')" style="padding: 0.5rem 1rem; width: auto;">Next</button>';
+    }
+
+    html += '</div></div>';
+
+    container.innerHTML = html;
+}
+
+async function changePage(page) {
+    currentPage = page;
+    await loadTrashedTasks(currentPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function createTaskCard(task) {
@@ -105,29 +177,27 @@ function createTaskCard(task) {
 
     const statusColor = task.status === 'completed' ? 'var(--success)' : 'var(--primary)';
 
-    return `
-        <div class="info-row" style="display: block; margin-bottom: 1rem; opacity: 0.8;">
-            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-                <div style="flex: 1;">
-                    <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 0.25rem;">
-                        ${escapeHtml(task.title)}
-                    </h3>
-                    ${task.description ? `<p style="color: #6B7280; font-size: 0.95rem; margin-bottom: 0.5rem;">${escapeHtml(task.description)}</p>` : ''}
-                    <div style="display: flex; gap: 1rem; font-size: 0.875rem; color: #6B7280;">
-                        <span style="color: ${statusColor}; font-weight: 600;">
-                            ${task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-                        </span>
-                        <span>Due: ${dueDate}</span>
-                        <span style="color: var(--danger);">Deleted: ${deletedDate}</span>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 0.5rem;">
-                    <button class="btn btn-primary" data-action="restore" data-id="${task.id}" style="padding: 0.5rem 1rem; font-size: 0.875rem; width: auto;">Restore</button>
-                    <button class="btn btn-danger" data-action="permanent-delete" data-id="${task.id}" style="padding: 0.5rem 1rem; font-size: 0.875rem; width: auto;">Delete Forever</button>
-                </div>
-            </div>
-        </div>
-    `;
+    let html = '<div class="info-row" style="display: block; margin-bottom: 1rem; opacity: 0.8;">';
+    html += '<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">';
+    html += '<div style="flex: 1;">';
+    html += '<h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 0.25rem;">' + escapeHtml(task.title) + '</h3>';
+    
+    if (task.description) {
+        html += '<p style="color: #6B7280; font-size: 0.95rem; margin-bottom: 0.5rem;">' + escapeHtml(task.description) + '</p>';
+    }
+    
+    html += '<div style="display: flex; gap: 1rem; font-size: 0.875rem; color: #6B7280;">';
+    html += '<span style="color: ' + statusColor + '; font-weight: 600;">' + task.status.charAt(0).toUpperCase() + task.status.slice(1) + '</span>';
+    html += '<span>Due: ' + dueDate + '</span>';
+    html += '<span style="color: var(--danger);">Deleted: ' + deletedDate + '</span>';
+    html += '</div></div>';
+    
+    html += '<div style="display: flex; gap: 0.5rem;">';
+    html += '<button class="btn btn-primary" data-action="restore" data-id="' + task.id + '" style="padding: 0.5rem 1rem; font-size: 0.875rem; width: auto;">Restore</button>';
+    html += '<button class="btn btn-danger" data-action="permanent-delete" data-id="' + task.id + '" style="padding: 0.5rem 1rem; font-size: 0.875rem; width: auto;">Delete Forever</button>';
+    html += '</div></div></div>';
+    
+    return html;
 }
 
 function attachTaskEventListeners() {
@@ -144,17 +214,17 @@ async function restoreTask(taskId) {
     const token = localStorage.getItem('auth_token');
     
     try {
-        const response = await fetch(`/api/tasks/${taskId}/restore`, {
+        const response = await fetch(`/api/tasks/` + taskId + `/restore`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${token}`,
+                'Authorization': `Bearer ` + token,
                 'Accept': 'application/json'
             }
         });
 
         if (response.ok) {
             showAlert('success', 'Task restored successfully');
-            await loadTrashedTasks();
+            await loadTrashedTasks(currentPage);
         } else {
             showAlert('error', 'Failed to restore task');
         }
@@ -169,17 +239,17 @@ async function permanentlyDeleteTask(taskId) {
     const token = localStorage.getItem('auth_token');
     
     try {
-        const response = await fetch(`/api/tasks/${taskId}/force`, {
+        const response = await fetch(`/api/tasks/` + taskId + `/force`, {
             method: 'DELETE',
             headers: {
-                'Authorization': `Bearer ${token}`,
+                'Authorization': `Bearer ` + token,
                 'Accept': 'application/json'
             }
         });
 
         if (response.ok) {
             showAlert('success', 'Task permanently deleted');
-            await loadTrashedTasks();
+            await loadTrashedTasks(currentPage);
         } else {
             showAlert('error', 'Failed to permanently delete task');
         }
@@ -190,7 +260,7 @@ async function permanentlyDeleteTask(taskId) {
 
 function showAlert(type, message) {
     const alertContainer = document.getElementById('alertContainer');
-    alertContainer.className = `alert alert-${type} active`;
+    alertContainer.className = `alert alert-` + type + ` active`;
     alertContainer.textContent = message;
     
     setTimeout(() => {

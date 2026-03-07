@@ -47,16 +47,25 @@ class TaskController extends Controller
     {
         try {
             $status = $request->query('status');
+            $perPage = $request->query('per_page', 10);
             
             if ($status && in_array($status, ['pending', 'completed'])) {
-                $tasks = $this->taskService->getTasksByStatus($request->user(), $status);
+                $tasks = $this->taskService->getTasksByStatus($request->user(), $status, $perPage);
             } else {
-                $tasks = $this->taskService->getAllTasks($request->user());
+                $tasks = $this->taskService->getAllTasks($request->user(), $perPage);
             }
 
             return response()->json([
                 'success' => true,
-                'data' => $tasks,
+                'data' => $tasks->items(),
+                'pagination' => [
+                    'current_page' => $tasks->currentPage(),
+                    'per_page' => $tasks->perPage(),
+                    'total' => $tasks->total(),
+                    'last_page' => $tasks->lastPage(),
+                    'from' => $tasks->firstItem(),
+                    'to' => $tasks->lastItem(),
+                ],
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -256,11 +265,20 @@ class TaskController extends Controller
     public function trashed(Request $request): JsonResponse
     {
         try {
-            $trashedTasks = $this->taskService->getTrashedTasks($request->user());
+            $perPage = $request->query('per_page', 10);
+            $trashedTasks = $this->taskService->getTrashedTasks($request->user(), $perPage);
 
             return response()->json([
                 'success' => true,
-                'data' => $trashedTasks,
+                'data' => $trashedTasks->items(),
+                'pagination' => [
+                    'current_page' => $trashedTasks->currentPage(),
+                    'per_page' => $trashedTasks->perPage(),
+                    'total' => $trashedTasks->total(),
+                    'last_page' => $trashedTasks->lastPage(),
+                    'from' => $trashedTasks->firstItem(),
+                    'to' => $trashedTasks->lastItem(),
+                ],
             ], 200);
         } catch (\Exception $e) {
             return response()->json([

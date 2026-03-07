@@ -15,9 +15,9 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('auth')->group(function () {
-        Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/logout-current', [AuthController::class, 'logoutCurrentDevice']);
         Route::get('/profile', [AuthController::class, 'profile']);
+        Route::put('/profile', [AuthController::class, 'updateProfile']);
     });
 
     Route::prefix('tasks')->group(function () {
@@ -33,5 +33,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
-    
+
 });

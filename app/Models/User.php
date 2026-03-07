@@ -55,20 +55,31 @@ class User extends Authenticatable
         return $this->createToken($tokenName)->plainTextToken;
     }
 
-    public function revokeAllTokens(): void
-    {
-        /** @var \Laravel\Sanctum\PersonalAccessToken $token */
-        foreach ($this->tokens as $token) {
-            $token->delete();
-        }
-    }
-
     public function revokeCurrentToken(): void
     {
         /** @var \Laravel\Sanctum\PersonalAccessToken|null $token */
         if ($token = $this->currentAccessToken()) {
             $token->delete();
         }
+    }
+
+    public function updateProfile(array $data): bool
+    {
+        $updateData = [];
+
+        if (isset($data['name'])) {
+            $updateData['name'] = $data['name'];
+        }
+
+        if (isset($data['email'])) {
+            $updateData['email'] = $data['email'];
+        }
+
+        if (isset($data['password'])) {
+            $updateData['password'] = \Illuminate\Support\Facades\Hash::make($data['password']);
+        }
+
+        return $this->update($updateData);
     }
 
     public function tasks(): HasMany

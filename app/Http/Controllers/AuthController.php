@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
+use App\Http\Requests\UpdateProfileRequest;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -79,24 +80,6 @@ class AuthController extends Controller
         }
     }
 
-    public function logout(Request $request): JsonResponse
-    {
-        try {
-            $this->authService->logout($request->user());
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Logged out successfully from all devices.',
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Logout failed.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
     public function logoutCurrentDevice(Request $request): JsonResponse
     {
         try {
@@ -121,5 +104,30 @@ class AuthController extends Controller
             'success' => true,
             'data' => $request->user(),
         ], 200);
+    }
+
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
+    {
+        try {
+            $user = $this->authService->updateProfile($request->user(), $request->validated());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Profile updated successfully.',
+                'data' => $user,
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Profile update failed.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

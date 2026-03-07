@@ -40,15 +40,25 @@ class AuthService
         ];
     }
 
-    public function logout(User $user): bool
-    {
-        $user->revokeAllTokens();
-        return true;
-    }
-
     public function logoutCurrentDevice(User $user): bool
     {
         $user->revokeCurrentToken();
         return true;
+    }
+
+    public function updateProfile(User $user, array $data): User
+    {
+        if (isset($data['password']) && isset($data['current_password'])) {
+            if (!$user->verifyPassword($data['current_password'])) {
+                throw ValidationException::withMessages([
+                    'current_password' => ['The current password is incorrect.'],
+                ]);
+            }
+        }
+
+        $user->updateProfile($data);
+        $user->refresh();
+
+        return $user;
     }
 }

@@ -13,6 +13,7 @@
         <div class="navbar-content">
             <a href="/" class="navbar-brand">Task Manager</a>
             <div class="navbar-menu">
+                <a href="/tasks" class="btn btn-secondary">Tasks</a>
                 <a href="/profile" class="btn btn-secondary">Profile</a>
                 <button class="btn btn-danger" data-logout="all">Logout</button>
             </div>
@@ -22,7 +23,10 @@
     @yield('content')
 
     <script>
-        if (localStorage.getItem('auth_token') && window.location.pathname === '/profile') {
+        const authPages = ['/profile', '/tasks'];
+        const currentPath = window.location.pathname;
+        if (localStorage.getItem('auth_token') && 
+            (authPages.includes(currentPath) || currentPath.startsWith('/tasks/'))) {
             document.getElementById('navbar').style.display = 'block';
         }
     </script>

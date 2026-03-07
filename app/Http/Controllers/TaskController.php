@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
 use App\Services\TaskService;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -15,6 +16,26 @@ class TaskController extends Controller
     public function __construct(TaskService $taskService)
     {
         $this->taskService = $taskService;
+    }
+
+    public function indexView(): View
+    {
+        return view('tasks.index');
+    }
+
+    public function createView(): View
+    {
+        return view('tasks.create');
+    }
+
+    public function editView(int $id): View
+    {
+        return view('tasks.edit');
+    }
+
+    public function showView(int $id): View
+    {
+        return view('tasks.show');
     }
 
     public function index(Request $request): JsonResponse

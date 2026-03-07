@@ -154,10 +154,9 @@ function initLogoutButtons() {
             if (!confirmLogout) return;
             
             const token = localStorage.getItem('auth_token');
-            const logoutAll = this.dataset.logout === 'all';
             
             try {
-                const response = await fetch(logoutAll ? '/api/auth/logout' : '/api/auth/logout-current', {
+                const response = await fetch('/api/auth/logout-current', {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
+use App\Models\Task;
 use App\Services\TaskService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -79,6 +80,8 @@ class TaskController extends Controller
     public function store(StoreTaskRequest $request): JsonResponse
     {
         try {
+            $this->authorize('create', Task::class);
+
             $task = $this->taskService->createTask($request->validated(), $request->user());
 
             return response()->json([
@@ -107,6 +110,8 @@ class TaskController extends Controller
                 ], 404);
             }
 
+            $this->authorize('view', $task);
+
             return response()->json([
                 'success' => true,
                 'data' => $task,
@@ -132,12 +137,7 @@ class TaskController extends Controller
                 ], 404);
             }
 
-            if (!$this->taskService->verifyTaskOwnership($task, $request->user())) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Unauthorized to update this task.',
-                ], 403);
-            }
+            $this->authorize('update', $task);
 
             $this->taskService->updateTask($task, $request->validated());
             $task->refresh();
@@ -168,12 +168,7 @@ class TaskController extends Controller
                 ], 404);
             }
 
-            if (!$this->taskService->verifyTaskOwnership($task, $request->user())) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Unauthorized to delete this task.',
-                ], 403);
-            }
+            $this->authorize('delete', $task);
 
             $this->taskService->deleteTask($task);
 
@@ -202,12 +197,7 @@ class TaskController extends Controller
                 ], 404);
             }
 
-            if (!$this->taskService->verifyTaskOwnership($task, $request->user())) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Unauthorized to update this task.',
-                ], 403);
-            }
+            $this->authorize('update', $task);
 
             $this->taskService->markTaskAsCompleted($task);
             $task->refresh();
@@ -238,12 +228,7 @@ class TaskController extends Controller
                 ], 404);
             }
 
-            if (!$this->taskService->verifyTaskOwnership($task, $request->user())) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Unauthorized to update this task.',
-                ], 403);
-            }
+            $this->authorize('update', $task);
 
             $this->taskService->markTaskAsPending($task);
             $task->refresh();
@@ -292,7 +277,7 @@ class TaskController extends Controller
     public function restore(Request $request, int $id): JsonResponse
     {
         try {
-            $task = $this->taskService->restoreTask($id, $request->user());
+            $task = Task::onlyTrashed()->where('id', $id)->where('user_id', $request->user()->id)->first();
 
             if (!$task) {
                 return response()->json([
@@ -301,10 +286,14 @@ class TaskController extends Controller
                 ], 404);
             }
 
+            $this->authorize('restore', $task);
+
+            $restoredTask = $this->taskService->restoreTask($id, $request->user());
+
             return response()->json([
                 'success' => true,
                 'message' => 'Task restored successfully.',
-                'data' => $task,
+                'data' => $restoredTask,
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -318,14 +307,18 @@ class TaskController extends Controller
     public function forceDestroy(Request $request, int $id): JsonResponse
     {
         try {
-            $deleted = $this->taskService->permanentlyDeleteTask($id, $request->user());
+            $task = Task::onlyTrashed()->where('id', $id)->where('user_id', $request->user()->id)->first();
 
-            if (!$deleted) {
+            if (!$task) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Task not found in recycle bin.',
                 ], 404);
             }
+
+            $this->authorize('forceDelete', $task);
+
+            $this->taskService->permanentlyDeleteTask($id, $request->user());
 
             return response()->json([
                 'success' => true,

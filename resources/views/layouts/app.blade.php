@@ -16,7 +16,7 @@
                 <a href="/tasks" class="btn btn-secondary">Tasks</a>
                 <a href="/tasks/recycle-bin" class="btn btn-secondary">Recycle Bin</a>
                 <a href="/profile" class="btn btn-secondary">Profile</a>
-                <button class="btn btn-danger" data-logout="all">Logout</button>
+                <button class="btn btn-danger" data-logout>Logout</button>
             </div>
         </div>
     </nav>
